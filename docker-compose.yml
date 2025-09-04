@@ -28,5 +28,15 @@ services:
       - mysql
     profiles:
       - backend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    profiles:
+      - frontend
 volumes:
   mysql-data:
