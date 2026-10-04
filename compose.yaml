@@ -1,0 +1,89 @@
+# Declara los servicios que forman la aplicación.
+services:
+  # Servicio de base de datos MySQL.
+  mysql:
+    # Usa la imagen oficial de MySQL 8.0.
+    image: mysql:8.0
+    # Asigna un nombre fijo al contenedor.
+    container_name: mysql
+    # Reinicia el contenedor automáticamente si se detiene.
+    restart: always
+    # Configura las credenciales y la base de datos inicial desde variables de entorno.
+    environment:
+      # Contraseña de la cuenta administrativa de MySQL.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # Usuario de aplicación que MySQL creará al inicializar la base de datos.
+      MYSQL_USER: ${MYSQL_USER}
+      # Contraseña del usuario de aplicación.
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # Nombre de la base de datos que MySQL creará al inicializarse.
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    # Publica MySQL en el puerto 3006 del equipo.
+    ports:
+      - "3006:3306"
+    # Mantiene los datos en el volumen y monta el SQL de inicialización.
+    volumes:
+      # Almacena de forma persistente los archivos de la base de datos.
+      - mysql-data:/var/lib/mysql
+      # Ejecuta los scripts de esta carpeta al inicializar un volumen vacío.
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    # Espera a que MySQL acepte conexiones y finalice su inicialización.
+    healthcheck:
+      # Comprueba la disponibilidad usando las credenciales configuradas.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      # Ejecuta el chequeo cada cinco segundos.
+      interval: 5s
+      # Da hasta cinco segundos a cada chequeo.
+      timeout: 5s
+      # Reintenta hasta 20 veces mientras MySQL inicia.
+      retries: 20
+      # Espera cinco segundos antes del primer chequeo.
+      start_period: 5s
+
+  # Servicio de la aplicación Node.js.
+  backend:
+    # Construye la imagen del backend usando su Dockerfile.
+    build:
+      # Usa la carpeta backend como contexto de construcción.
+      context: ./backend
+      # Indica el Dockerfile que se usará para construir la imagen.
+      dockerfile: Dockerfile
+    # Reinicia el backend si se detiene inesperadamente.
+    restart: unless-stopped
+    # Publica la aplicación en el puerto 3000 del equipo.
+    ports:
+      - "3000:3000"
+    # Pasa al backend los datos para conectarse a MySQL.
+    environment:
+      # Nombre del servicio MySQL dentro de la red de Compose.
+      DB_HOST: mysql
+      # Credenciales y nombre de base de datos tomados del archivo .env.
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+    # No inicia el backend hasta que MySQL esté saludable.
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Servicio web que muestra el directorio de usuarios.
+  frontend:
+    # Construye el contenedor Nginx con los archivos de la interfaz.
+    build:
+      # Usa la carpeta frontend como contexto de construcción.
+      context: ./frontend
+      # Lee la configuración declarada en el Dockerfile del frontend.
+      dockerfile: Dockerfile
+    # Reinicia el frontend si se detiene inesperadamente.
+    restart: unless-stopped
+    # Publica la interfaz en el puerto 8080 del equipo.
+    ports:
+      - "8080:80"
+    # Inicia Nginx cuando el backend ya arrancó.
+    depends_on:
+      - backend
+
+# Declara los volúmenes nombrados usados por los servicios.
+volumes:
+  # Volumen persistente asociado a los datos de MySQL.
+  mysql-data:

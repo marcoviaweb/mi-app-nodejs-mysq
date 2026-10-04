@@ -1,14 +1,20 @@
-# Usar la imagen base de Node.js
+# Usa Node.js 18 sobre Alpine como imagen base ligera.
 FROM node:18-alpine
-# Crear el directorio de trabajo
+
+# Define el directorio de trabajo dentro del contenedor.
 WORKDIR /usr/src/app
-# Copiar los archivos necesarios
+
+# Copia los manifiestos de dependencias para preparar su instalación.
 COPY package*.json ./
-# Instalar las dependencias
+
+# Instala las dependencias declaradas en package.json.
 RUN npm install
-# Copiar el resto del código fuente
+
+# Copia el código fuente y los demás archivos del contexto de construcción.
 COPY . .
-# Exponer el puerto de la aplicación
+
+# Documenta el puerto de la aplicación; Compose configura su publicación.
 EXPOSE 3000
-# Comando para iniciar la aplicación
+
+# Inicia la aplicación al arrancar el contenedor.
 CMD ["node", "app.js"]
